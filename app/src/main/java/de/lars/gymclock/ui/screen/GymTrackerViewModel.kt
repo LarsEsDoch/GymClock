@@ -6,14 +6,23 @@ import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
+import de.lars.gymclock.data.SettingsRepository
+import de.lars.gymclock.data.WorkoutRepository
+import de.lars.gymclock.db.WorkoutSet
+import de.lars.gymclock.notification.NotificationHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-class GymTrackerViewModel(application: Application) : AndroidViewModel(application) {
+class GymTrackerViewModel(
+    application: Application,
+    private val workoutRepository: WorkoutRepository,
+    private val settingsRepository: SettingsRepository
+) : AndroidViewModel(application) {
 
     enum class TimerMode {
         IDLE,
@@ -27,17 +36,26 @@ class GymTrackerViewModel(application: Application) : AndroidViewModel(applicati
     private val _currentTimeMillis = MutableLiveData(0L)
     val timerDisplay: LiveData<String> = _currentTimeMillis.map { formatTime(it) }
 
+    val allSets: LiveData<List<WorkoutSet>> = workoutRepository.allSets.asLiveData()
+
     private var timerJob: Job? = null
-    var restTimeMillis = 60000L // 1 minute
+    var restTimeMillis: Long
+        get() = settingsRepository.restTimeMillis
+        set(value) {
+            settingsRepository.restTimeMillis = value
+        }
 
     private val soundPlayer: MediaPlayer by lazy {
         MediaPlayer.create(getApplication(), Settings.System.DEFAULT_NOTIFICATION_URI)
     }
 
+    private val notificationHelper by lazy { NotificationHelper(getApplication()) }
+
     fun startSetTimer() {
         if (_timerMode.value == TimerMode.SET_IN_PROGRESS) return
         _timerMode.value = TimerMode.SET_IN_PROGRESS
         timerJob?.cancel() // Cancel any previous job
+        playSound()
 
         val startTime = System.currentTimeMillis()
         timerJob = viewModelScope.launch {
@@ -54,6 +72,11 @@ class GymTrackerViewModel(application: Application) : AndroidViewModel(applicati
         if (_timerMode.value == TimerMode.RESTING) return
         _timerMode.value = TimerMode.RESTING
         timerJob?.cancel()
+        playSound()
+
+        viewModelScope.launch {
+            workoutRepository.insertSet()
+        }
 
         timerJob = viewModelScope.launch {
             var remainingTime = restTimeMillis
@@ -64,9 +87,10 @@ class GymTrackerViewModel(application: Application) : AndroidViewModel(applicati
                 remainingTime -= 50
                 _currentTimeMillis.postValue(if (remainingTime < 0) 0 else remainingTime)
             }
-            
+
             _timerMode.postValue(TimerMode.IDLE)
             playSound()
+            notificationHelper.showRestFinishedNotification()
         }
     }
 
