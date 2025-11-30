@@ -17,9 +17,11 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val proximitySensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
     private val gravitySensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
+    private val lightSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
 
     private var isNear = false
     private var isUpsideDown = false
+    private var isDark = false
 
     private var lastState: Boolean? = null
     private var confirmationJob: Job? = null
@@ -28,6 +30,7 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
     fun start() {
         proximitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         gravitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+        lightSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
 
     fun stop() {
@@ -40,13 +43,14 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
 
         when (event.sensor.type) {
             Sensor.TYPE_PROXIMITY -> {
-                // isNear is true if the object is very close
-                isNear = event.values[0] < (proximitySensor?.maximumRange ?: 5f)
+                isNear = event.values[0] < (proximitySensor?.maximumRange ?: 1f)
             }
             Sensor.TYPE_GRAVITY -> {
-                // Check if the phone is upside down (Y-axis of gravity is strongly negative)
                 val y = event.values[1]
-                isUpsideDown = y < -9.5
+                isUpsideDown = y < -9.0
+            }
+            Sensor.TYPE_LIGHT -> {
+                isDark = event.values[0] < 10.0f // Threshold for darkness
             }
         }
         checkPocketState()
@@ -55,13 +59,14 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     private fun checkPocketState() {
-        val currentState = isNear && isUpsideDown
+        val currentState = isNear && isUpsideDown && isDark
 
         if (currentState != lastState) {
             confirmationJob?.cancel() // Cancel any pending confirmation
             confirmationJob = scope.launch {
                 delay(CONFIRMATION_DELAY_MS) // Wait for a short period
-                if (currentState == (isNear && isUpsideDown)) { // Re-check the condition after delay
+                // Re-check the condition after the delay to ensure the state is stable
+                if (currentState == (isNear && isUpsideDown && isDark)) {
                     lastState = currentState
                     withContext(Dispatchers.Main) {
                         onPocketStateChanged(currentState)

@@ -28,7 +28,7 @@ class GymTrackerViewModel(application: Application) : AndroidViewModel(applicati
     val timerDisplay: LiveData<String> = _currentTimeMillis.map { formatTime(it) }
 
     private var timerJob: Job? = null
-    private val initialRestTimeMillis = 60000L // 1 minute
+    var restTimeMillis = 60000L // 1 minute
 
     private val soundPlayer: MediaPlayer by lazy {
         MediaPlayer.create(getApplication(), Settings.System.DEFAULT_NOTIFICATION_URI)
@@ -56,7 +56,7 @@ class GymTrackerViewModel(application: Application) : AndroidViewModel(applicati
         timerJob?.cancel()
 
         timerJob = viewModelScope.launch {
-            var remainingTime = initialRestTimeMillis
+            var remainingTime = restTimeMillis
             _currentTimeMillis.postValue(remainingTime)
 
             while (remainingTime > 0) {
@@ -68,6 +68,12 @@ class GymTrackerViewModel(application: Application) : AndroidViewModel(applicati
             _timerMode.postValue(TimerMode.IDLE)
             playSound()
         }
+    }
+
+    fun stopTimer() {
+        timerJob?.cancel()
+        _timerMode.value = TimerMode.IDLE
+        _currentTimeMillis.value = 0L
     }
 
     private fun playSound() {
