@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,7 +28,8 @@ import de.lars.gymclock.ui.theme.GymClockTheme
 fun GymTrackerScreen(
     viewModel: GymTrackerViewModel = viewModel(),
     isInPocket: Boolean,
-    onSettingsClicked: () -> Unit
+    onSettingsClicked: () -> Unit,
+    onHistoryClicked: () -> Unit
 ) {
     val timerDisplay by viewModel.timerDisplay.observeAsState("00:00")
     val timerMode by viewModel.timerMode.observeAsState(GymTrackerViewModel.TimerMode.IDLE)
@@ -55,7 +57,11 @@ fun GymTrackerScreen(
 
         Text(text = title, style = TextStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = subtitle, style = TextStyle(fontSize = 16.sp))
+        Text(
+            text = subtitle, 
+            style = TextStyle(fontSize = 16.sp), 
+            textAlign = TextAlign.Center
+        )
 
         Spacer(modifier = Modifier.height(48.dp))
 
@@ -78,8 +84,14 @@ fun GymTrackerScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(onClick = onSettingsClicked) {
-            Text(text = "Settings")
+        Row {
+            Button(onClick = onSettingsClicked) {
+                Text(text = "Settings")
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Button(onClick = onHistoryClicked) {
+                Text(text = "History")
+            }
         }
     }
 }
@@ -88,6 +100,6 @@ fun GymTrackerScreen(
 @Composable
 fun GymTrackerScreenPreview() {
     GymClockTheme {
-        GymTrackerScreen(isInPocket = false, onSettingsClicked = {})
+        GymTrackerScreen(isInPocket = false, onSettingsClicked = {}, onHistoryClicked = {})
     }
 }

@@ -10,12 +10,16 @@ import androidx.lifecycle.asLiveData
 import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import de.lars.gymclock.data.SettingsRepository
+import de.lars.gymclock.data.WorkoutDay
 import de.lars.gymclock.data.WorkoutRepository
 import de.lars.gymclock.db.WorkoutSet
 import de.lars.gymclock.notification.NotificationHelper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class GymTrackerViewModel(
@@ -37,6 +41,19 @@ class GymTrackerViewModel(
     val timerDisplay: LiveData<String> = _currentTimeMillis.map { formatTime(it) }
 
     val allSets: LiveData<List<WorkoutSet>> = workoutRepository.allSets.asLiveData()
+    val workoutDays: LiveData<List<WorkoutDay>> = allSets.map { sets ->
+        sets.groupBy { SimpleDateFormat("EEEE, dd.MM.yyyy", Locale.getDefault()).format(Date(it.timestamp)) }
+            .map { (date, setsForDay) ->
+                val duration = if (setsForDay.size > 1) {
+                    val first = setsForDay.first().timestamp
+                    val last = setsForDay.last().timestamp
+                    formatTime(last - first)
+                } else {
+                    "00:00"
+                }
+                WorkoutDay(date, setsForDay, duration)
+            }
+    }
 
     private var timerJob: Job? = null
     var restTimeMillis: Long
@@ -54,7 +71,7 @@ class GymTrackerViewModel(
     fun startSetTimer() {
         if (_timerMode.value == TimerMode.SET_IN_PROGRESS) return
         _timerMode.value = TimerMode.SET_IN_PROGRESS
-        timerJob?.cancel() // Cancel any previous job
+        timerJob?.cancel()
         playSound()
 
         val startTime = System.currentTimeMillis()

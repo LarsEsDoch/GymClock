@@ -10,6 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
@@ -20,6 +21,7 @@ import de.lars.gymclock.sensor.PocketDetector
 import de.lars.gymclock.ui.screen.GymTrackerScreen
 import de.lars.gymclock.ui.screen.GymTrackerViewModel
 import de.lars.gymclock.ui.screen.GymTrackerViewModelFactory
+import de.lars.gymclock.ui.screen.HistoryScreen
 import de.lars.gymclock.ui.screen.SettingsScreen
 import de.lars.gymclock.ui.theme.GymClockTheme
 
@@ -35,7 +37,6 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _: Boolean ->
-        // We can handle the result here if needed, but for now we do nothing.
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,13 +50,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             GymClockTheme {
                 val navController = rememberNavController()
+                val workoutDays by viewModel.workoutDays.observeAsState(initial = emptyList())
 
                 NavHost(navController = navController, startDestination = "tracker") {
                     composable("tracker") {
                         GymTrackerScreen(
                             viewModel = viewModel,
                             isInPocket = isInPocket,
-                            onSettingsClicked = { navController.navigate("settings") }
+                            onSettingsClicked = { navController.navigate("settings") },
+                            onHistoryClicked = { navController.navigate("history") }
                         )
                     }
                     composable("settings") {
@@ -66,6 +69,12 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack()
                             },
                             onCancel = { navController.popBackStack() }
+                        )
+                    }
+                    composable("history") {
+                        HistoryScreen(
+                            workoutDays = workoutDays,
+                            onBack = { navController.popBackStack() }
                         )
                     }
                 }

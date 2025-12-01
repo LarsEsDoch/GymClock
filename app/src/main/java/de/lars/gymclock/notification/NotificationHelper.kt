@@ -24,7 +24,7 @@ class NotificationHelper(private val context: Context) {
 
     fun showRestFinishedNotification() {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Replace with your own icon
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Rest is over!")
             .setContentText("Time to start your next set.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
