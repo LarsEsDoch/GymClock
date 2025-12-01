@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import de.lars.gymclock.ui.theme.GymClockTheme
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -34,13 +35,19 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Set Rest Time: ${restTime.toInt()} seconds")
+        Text("Set Rest Time: ${restTime.roundToInt()} seconds")
         Spacer(modifier = Modifier.height(16.dp))
         Slider(
             value = restTime,
-            onValueChange = { restTime = it },
-            valueRange = 10f..300f, // 10 seconds to 5 minutes
-            steps = 28 // (300-10)/10 = 29 steps, so 28 intermediates
+            onValueChange = { 
+                restTime = it
+            },
+            onValueChangeFinished = {
+                val roundedValue = (restTime.roundToInt() / 10) * 10
+                restTime = roundedValue.toFloat()
+            },
+            valueRange = 10f..300f,
+            steps = 28
         )
         Spacer(modifier = Modifier.height(32.dp))
         Row {
