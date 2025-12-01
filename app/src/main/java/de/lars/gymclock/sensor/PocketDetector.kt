@@ -15,11 +15,9 @@ import kotlinx.coroutines.withContext
 class PocketDetector(context: Context, private val onPocketStateChanged: (Boolean) -> Unit) : SensorEventListener {
 
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val proximitySensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
     private val gravitySensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
     private val lightSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
 
-    private var isNear = false
     private var isUpsideDown = false
     private var isDark = false
 
@@ -28,7 +26,6 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
     private val scope = CoroutineScope(Dispatchers.Default)
 
     fun start() {
-        proximitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         gravitySensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         lightSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
     }
@@ -42,15 +39,12 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
         event ?: return
 
         when (event.sensor.type) {
-            Sensor.TYPE_PROXIMITY -> {
-                isNear = event.values[0] < (proximitySensor?.maximumRange ?: 1f)
-            }
             Sensor.TYPE_GRAVITY -> {
                 val y = event.values[1]
                 isUpsideDown = y < -9.0
             }
             Sensor.TYPE_LIGHT -> {
-                isDark = event.values[0] < 10.0f // Threshold for darkness
+                isDark = event.values[0] < 10.0f
             }
         }
         checkPocketState()
@@ -59,14 +53,13 @@ class PocketDetector(context: Context, private val onPocketStateChanged: (Boolea
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     private fun checkPocketState() {
-        val currentState = isNear && isUpsideDown && isDark
+        val currentState = isUpsideDown && isDark
 
         if (currentState != lastState) {
-            confirmationJob?.cancel() // Cancel any pending confirmation
+            confirmationJob?.cancel()
             confirmationJob = scope.launch {
-                delay(CONFIRMATION_DELAY_MS) // Wait for a short period
-                // Re-check the condition after the delay to ensure the state is stable
-                if (currentState == (isNear && isUpsideDown && isDark)) {
+                delay(CONFIRMATION_DELAY_MS)
+                if (currentState == (isUpsideDown && isDark)) {
                     lastState = currentState
                     withContext(Dispatchers.Main) {
                         onPocketStateChanged(currentState)
